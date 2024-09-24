@@ -1,0 +1,149 @@
+  
+<!DOCTYPE html>
+<html lang="is">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Heimalestur Vikunnar</title>
+  <link rel="stylesheet" href="styles.css"> 
+</head>
+<body>
+
+  <div class="container">
+    <h1>Heimalestur Vikunnar</h1>
+    
+    <!-- Form til að bæta við nýjum færslum semsagt vikudagur og blaðsíðufjöldi -->
+    <form id="readingForm">
+      <select id="day" required>
+        <option value="" disabled selected>Veldu dag</option>
+        <option value="Mánudagur">Mánudagur</option>
+        <option value="Þriðjudagur">Þriðjudagur</option>
+        <option value="Miðvikudagur">Miðvikudagur</option>
+        <option value="Fimmtudagur">Fimmtudagur</option>
+        <option value="Föstudagur">Föstudagur</option>
+        <option value="Laugardagur">Laugardagur</option>
+        <option value="Sunnudagur">Sunnudagur</option>
+      </select>
+
+      <!-- Input til að slá inn fjölda blaðsíðna sem á að lesa yfir vikuna :) -->
+      <input type="number" id="pages" placeholder="Blaðsíðufjöldi" required min="1">
+
+      <!-- Hnappur til að bæta við færslu -->
+      <button type="submit">Bæta við færslu</button>
+    </form>
+
+    <!-- Listi þar sem færslur eru sýndar -->
+    <ul id="readingList"></ul>
+
+    <!-- Hnappur til að hreinsa  færslur -->
+    <button id="resetBtn">Hreinsa allar færslur</button>
+
+    <!-- Sýna fjölda lesinna blaðsíðna -->
+    <div class="total-pages">Heildarfjöldi lesinna blaðsíðna: <span id="totalPages">0</span></div>
+  </div>
+
+  <script>
+    // Velja HTML elementa til að vinna með í scriptinu
+    const readingForm = document.getElementById('readingForm'); // Formið fyrir nýjar færslur
+    const readingList = document.getElementById('readingList'); // Listi til að sýna færslur
+    const totalPagesElement = document.getElementById('totalPages'); // Staðsetning til að sýna heildarfjölda lesinna blaðsíðna
+    const resetBtn = document.getElementById('resetBtn'); // Hnappur til að hreinsa allar færslur
+
+    // Færslur eru sóttar í localStorage eða settar tómann lista ef engar færslur eru til
+    let readings = JSON.parse(localStorage.getItem('readings')) || [];
+
+    // Fall sem birtir allar færslur í listanum
+    function renderReadings() {
+      readingList.innerHTML = ''; // Hreinsa listann áður en við bætum við nýjum
+      let totalPages = 0; // Tökum niður heildarfjölda blaðsíðna
+
+      // Fara í gegnum hverja færslu
+      readings.forEach((reading, index) => {
+        const li = document.createElement('li'); // Búa til nýtt lista element eða li
+        li.textContent = `${reading.day}: ${reading.pages} bls.`; // text content inní li 
+        // Búa til checkbox
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox'; 
+        checkbox.checked = reading.completed; // Lokið eða ekki
+
+        // Touchend fyrir síma Merkja færslu sem completed eða ekki með snertingu á li
+        li.addEventListener('touchend', () => {
+          reading.completed = !reading.completed; // Snúa við stöðu (completed) þegar það er snert hann
+          checkbox.checked = reading.completed; // Uppfæra stöðu á checkboxinu
+          updateStorage(); // Vista nýja stöðu í localStorage
+          renderReadings(); // Uppfæra listann
+        });
+
+        // Event listener fyrir click á checkbox
+        checkbox.addEventListener('change', () => {
+          reading.completed = checkbox.checked; // Uppfæra completed stöðu þegar checkbox er hakað við eða af
+          updateStorage(); // Vista í localStorage
+          renderReadings(); // Uppfæra listann
+        });
+
+        // Bæta checkboxinu fremst í li
+        li.prepend(checkbox);
+
+        // Setja toggle virkni á 'completed' klasa til að bæta við yfirstrikun og breyta bakgrunni ef lestri er lokið fancy
+        li.classList.toggle('completed', reading.completed);
+
+        // Búa til eyða færslu takka 
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Eyða'; // Texti á takkann
+        deleteBtn.addEventListener('click', () => {
+          readings.splice(index, 1); // Fjarlægja færsluna úr listanum
+          updateStorage(); // Uppfæra localStorage
+          renderReadings(); // Uppfæra listann
+        });
+
+        // Bæta takkanum við li
+        li.appendChild(deleteBtn);
+        // Bæta li við í listann
+        readingList.appendChild(li);
+
+        // Telja saman heildarfjölda lesinna blaðsíðna (teljum aðeins completed bls)
+        if (reading.completed) {
+          totalPages += Number(reading.pages); // Bæta blaðsíðufjölda við heildarfjöldann ef færsla er merkt completed
+        }
+      });
+
+      // Sýna uppfærðan heildarfjölda á skjánum
+      totalPagesElement.textContent = totalPages;
+    }
+
+    // Fallið sem uppfærir og vistar færslur í localStorage
+    function updateStorage() {
+      localStorage.setItem('readings', JSON.stringify(readings)); // Geyma færslur í JSON
+    }
+
+    // Þegar færsla er bætt við í forminu
+    readingForm.addEventListener('submit', (e) => {
+      e.preventDefault(); // Endurhlaða síðuna.
+      const day = document.getElementById('day').value; // Sækja valinn dag
+      const pages = document.getElementById('pages').value; // Sækja blaðsíðufjölda
+
+      // Búa til nýja færslu
+      const newReading = {
+        day,
+        pages,
+        completed: false // Auto að lestrinum sé ekki lokið
+      };
+
+      readings.push(newReading); // Bæta nýrri færslu í listann
+      updateStorage(); // Vista í localStorage
+      renderReadings(); // Uppfæra listann
+      readingForm.reset(); // Hreinsa formið
+    });
+  
+    // Þegar hreinsa allar færslur takkanum er smellt á
+    resetBtn.addEventListener('click', () => {
+      readings = []; // Hreinsa allann listann
+      updateStorage(); // Uppfæra localStorage
+      renderReadings(); // Endurnýja listann
+    });
+
+    // Keyrir fallið við þegar síðann fer af stað til að birta allar vistaðar færslur úr localStorage
+    renderReadings();
+  </script>
+</body>
+</html>
